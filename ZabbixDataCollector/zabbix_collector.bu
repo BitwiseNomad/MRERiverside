@@ -1,0 +1,124 @@
+from zabbix_utils.api import ZabbixAPI
+import logging
+
+
+class ZabbixCollector:
+    def __init__(self, instance):
+        self.zapi = self.connect_to_zabbix(instance)
+        self.servers_group_id = self.get_servers_group_id()
+
+    def connect_to_zabbix(self, instance):
+        zapi = ZabbixAPI(instance['url'])
+        zapi.login(token=instance['token'])
+        return zapi
+
+    def get_servers_group_id(self):
+        try:
+            hostgroups = self.zapi.hostgroup.get(filter={'name': ['Servers']})
+            return hostgroups[0]['groupid'] if hostgroups else None
+        except Exception as e:
+            logging.error(f"Error getting 'Servers' hostgroups: {str(e)}")
+            return None
+
+    def get_servers(self):
+        try:
+            if self.servers_group_id:
+                servers = self.zapi.host.get(
+                    groupids=self.servers_group_id,
+                    output=['hostid', 'name', 'available', 'active_available'],
+                    filter={'status': '0'} # 0 = enabled hosts
+                )
+            else:
+                servers = self.zapi.host.get(
+                    output=['hostid', 'name', 'available', 'active_available'],
+                    filter={'status': '0'}
+                )
+
+            # debugging
+            if servers:
+                logging.debug(f"Server data structure: {servers[0]}")
+            return servers
+        except Exception as e:
+            logging.error(f"Error getting servers: {str(e)}")
+            return []
+
+    def get_server_availability(self, server):
+        try:
+            # Ensure server is a dict
+            if not isinstance(server, dict):
+                logging.error(f"Unexpected server data type: {type(server)}")
+                return 0
+
+            passive_available = server.get('available') == '1'
+            active_available = server.get('active_available') == '1'
+
+            # Log availability status for debugging
+            logging.debug(f"Server {server.get('name', 'Unknown')} - Passive: {passive_available}, Active: {active_available}")
+
+            # If both types checks supported, consider available if either
+            if 'available' in server and 'active_available' in server:
+                return 1 if (passive_available or active_available) else 0
+            # If only passive checks configured
+            elif 'available' in server:
+                return 1 if passive_available else 0
+            # If only active checks are configured
+            elif 'active_available' in server:
+                return 1 if active_available else 0
+            else:
+                logging.warning(f"No availability information for server {server.get('name', 'Unknown')}")
+                return 0
+        except Exception as e:
+            logging.error(f"Error getting server availability: {str(e)}")
+            return 0
+
+    def get_server_disk_space(self, hostid):
+        try:
+            items = self.zapi.item.get(
+                hostids=hostid,
+                search={'key_': 'vfs.fs.size'},
+                output=['key_', 'lastvalue']
+            )
+
+            disk_data = {}
+            for item in items:
+                try:
+                    key_parts = item['key_'].split('[')[1].split(']')[0].split(',')
+                    mount_point = key_parts[0]
+                    metric = key_parts[1] if len(key_parts) > 1 else 'total'
+                    value = float(item['lastvalue'])
+
+                    if mount_point not in disk_data:
+                        disk_data[mount_point] = {'total': 0, 'used': 0, 'free': 0}
+
+                    if 'total' in metric:
+                        disk_data[mount_point]['total'] = value
+                    elif 'used' in metric:
+                        disk_data[mount_point]['used'] = value
+                    elif 'free' in metric:
+                        disk_data[mount_point]['free'] = value
+                except Exception as item_error:
+                    logging.warning(f"Error processing item {item['key_']}: {str(item_error)}")
+                    continue
+
+            result = []
+            for mount_point, data in disk_data.items():
+                if data['total'] > 0:
+                    # Calculate free space if not provided
+                    if data['free'] == 0:
+                        data['free'] = data['total'] - data['used']
+
+                    free_percent = (data['free'] / data['total']) * 100
+
+                    result.append({
+                        'mount_point': mount_point,
+                        'total_space': data['total'],
+                        'used_space': data['used'],
+                        'free_space': data['free'],
+                        'free_space_percent': free_percent
+                    })
+
+            return result
+
+        except Exception as e:
+            logging.error(f"Error getting server disk space: {str(e)}")
+            return []
