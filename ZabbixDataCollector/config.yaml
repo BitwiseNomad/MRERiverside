@@ -1,0 +1,17 @@
+# Central DB Instance
+database:
+    driver: "ODBC Driver 17 for SQL Server"
+    server: "COLO SQL Server"
+    database: "DB_Name"
+    username: "db_user"
+    password: "db_pwd"
+
+# [Plant Name] Zabbix Instance
+zabbix_instances:
+    - url: "http://your_zabbix_url"
+      token: "your_zabbix_api_token"
+      plant_name: "Plant Name"
+      region: "Region"
+      bs_unit: "Business Unity"
+
+    # Append more instances as needed

@@ -1,10 +1,10 @@
 # Zabbix Data Collector
 
 ## Overview
-This project is a Python-based tool designed to collect infrastructure
-availability and disk space metrics from multiple Zabbix instances and store
-the data in a centralized SQL Server database. It's built with modularity and
-configurability in mind, allowing for easy maintenance and scalability.
+This is a Python-based tool designed to collect infrastructure availability
+and disk space metrics from multiple Zabbix instances and store the data in a
+centralized SQL Server database. It's built with modularity and configurability
+in mind, allowing for easy maintenance and scalability.
 
 ## Features
 * Connects to multiple Zabbix instances concurrently.
