@@ -4,16 +4,32 @@ import concurrent.futures
 from datetime import datetime
 from zabbix_collector import ZabbixCollector
 from database_manager import DatabaseManager
+from zabbix_auth import get_token
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 def load_config(config_file):
     with open(config_file, 'r') as file:
         return yaml.safe_load(file)
 
+
+def get_zabbix_token(instance):
+    if 'token' in instance:
+        return instance['token']
+    elif 'username' in instance and 'password' in instance:
+        return get_token(instance['url'], instance['username'],
+                         instance['password'])
+    else:
+        raise ValueError(f"Neither token nor credentials provided for Zabbix instance: {instance['url']}")
+
+
 def process_zbx_instance(instance, db_manager):
     try:
+        token = get_zabbix_token(instance)
+        instance['token'] = token # Update instance with the token
         zabbix_collector = ZabbixCollector(instance)
         plant_id = db_manager.get_plant_id(instance['plant_name'])
 
@@ -58,7 +74,7 @@ def process_zbx_instance(instance, db_manager):
 
 def main():
     try:
-        config = load_config('config.yaml')
+        config = load_config('config.yml')
         db_manager = DatabaseManager(config['database'])
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
