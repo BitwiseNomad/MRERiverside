@@ -6,7 +6,7 @@ import logging
 class DatabaseManager:
     def __init__(self, db_config):
         self.conn_str = self._create_conn_str(db_config)
-        self.run_id = self.get_new_run_id()
+        self.run_id = self._get_new_run_id()
 
     def _create_conn_str(self, config):
         return (
