@@ -43,8 +43,17 @@ database:
     password: "db_pwd"
 
 zabbix_instances:
-    - url: "http://your_zabbix_url"
-      token: "your_zabbix_api_token"
+    - url: "http://<zabbix_server_url>/zabbix"
+
+    #################################################
+    # You can use either token or username/password #
+    #################################################
+
+      token: "<zabbix_api_token>"
+    # Or
+    # username: "<zabbix_username>"
+    # password: "<zabbix_password>"
+
       plant_name: "Plant Name"
       region: "Region"
       bs_unit: "Business Unity"
