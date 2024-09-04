@@ -33,7 +33,7 @@ class ZabbixAuth:
 
     def login(self, username, password):
         try:
-            result = self.api_requestr("user.login", {"user": username,
+            result = self.api_request("user.login", {"user": username,
                                                       "password": password})
             self.auth_token = result
             return result
@@ -96,11 +96,11 @@ class ZabbixAuth:
         return generated_token[0]['token']
 
 
-    def get_token(url, username, password, token_name="PythonScriptToken"):
-        auth = ZabbixAuth(url)
-        try:
-            auth.login(username, password)
-            token = auth.get_or_create_token(token_name)
-            return token
-        finally:
-            auth.logout()
+def get_zabbix_token(url, username, password, token_name="PythonScriptToken"):
+    auth = ZabbixAuth(url)
+    try:
+        auth.login(username, password)
+        token = auth.get_or_create_token(token_name)
+        return token
+    finally:
+        auth.logout()

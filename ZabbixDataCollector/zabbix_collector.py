@@ -1,5 +1,3 @@
-# zabbix_collector.py
-
 from zabbix_utils.api import ZabbixAPI
 import logging
 
