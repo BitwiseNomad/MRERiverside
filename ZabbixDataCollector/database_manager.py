@@ -6,6 +6,7 @@ import logging
 class DatabaseManager:
     def __init__(self, db_config):
         self.conn_str = self._create_conn_str(db_config)
+        self.run_id = self.get_new_run_id()
 
     def _create_conn_str(self, config):
         return (
@@ -19,6 +20,12 @@ class DatabaseManager:
     def _get_connection(self):
         return pyodbc.connect(self.conn_str)
 
+    def _get_new_run_id(self):
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT ISNULL(MAX(run_id), 0) + 1 FROM dbo.fact_infra_availability")
+            return cursor.fectchone()[0]
+
     def get_plant_id(self, plant_name):
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -31,28 +38,16 @@ class DatabaseManager:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             try:
-                # Get existing server
                 cursor.execute("""
-                SELECT id FROM dbo.dim_server WHERE plant_id = ? AND server_name = ?
-                """, (plant_id, server_name))
-                result = cursor.fetchone()
-
-                if result:
-                    return result[0]
-                else:
-                    # if not found, insert the new server
-                    cursor.execute("""
+                IF NOT EXISTS (SELECT 1 FROM dbo.dim_server WHERE plant_id = ? AND server_name = ?)
+                BEGIN
                     INSERT INTO dbo.dim_server (plant_id, server_name, zabbix_hostid)
                     VALUES (?, ?, ?)
-                    """, (plant_id, server_name, zabbix_hostid))
-                    conn.commit()
-
-                    # Now get the id of server
-                    cursor.execute("""
-                    SELECT id FROM dbo.dim_server WHERE plant_id = ? AND server_name = ?
-                    """, (plant_id, server_name))
-                    result = cursor.fetchone()
-                    return result[0]
+                END
+                SELECT id FROM dbo.dim_server WHERE plant_id = ? AND server_name = ?
+                    """, (plant_id, server_name, plant_id, server_name,
+                          zabbix_hostid, plant_id, server_name))
+                return cursor.fetchone()[0]
             except Exception as e:
                 logging.error(f"Error in get_or_create_server: {str(e)}")
                 conn.rollback()
@@ -63,9 +58,9 @@ class DatabaseManager:
             cursor = conn.cursor()
             try:
                 cursor.execute("""
-                INSERT INTO dbo.fact_infra_availability (server_id, timestamp, is_available)
-                VALUES (?, ?, ?)
-                """, (server_id, datetime.now(), is_available))
+                INSERT INTO dbo.fact_infra_availability (server_id, timestamp, is_available, run_id)
+                VALUES (?, ?, ?, ?)
+                """, (server_id, datetime.now(), is_available, self.run_id))
                 conn.commit()
             except Exception as e:
                 logging.error(f"Error in insert_infra_availability: {str(e)}")

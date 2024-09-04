@@ -7,7 +7,8 @@ from database_manager import DatabaseManager
 from zabbix_auth import ZabbixAuth, get_zabbix_token
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 def load_config(config_file):
     with open(config_file, 'r') as file:
@@ -77,11 +78,15 @@ def main():
         config = load_config('config.yml')
         db_manager = DatabaseManager(config['database'])
 
+        logging.info(f"Starting data collection run with run_id: {db_manager.run_id}")
+
         zabbix_instances = config['zabbix_instances']
         logging.info(f"Found {len(zabbix_instances)} Zabbix instances in the configuration")
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            future_to_instance = {executor.submit(process_zbx_instance, instance, db_manager): instance for instance in zabbix_instances}
+            future_to_instance = {executor.submit(process_zbx_instance,
+                                                  instance, db_manager):
+                                  instance for instance in zabbix_instances}
 
             for future in concurrent.futures.as_completed(future_to_instance):
                 instance = future_to_instance[future]
