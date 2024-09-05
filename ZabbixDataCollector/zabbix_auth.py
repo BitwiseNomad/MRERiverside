@@ -33,7 +33,7 @@ class ZabbixAuth:
 
     def login(self, username, password):
         try:
-            result = self.api_request("user.login", {"user": username,
+            result = self.api_request("user.login", {"username": username,
                                                       "password": password})
             self.auth_token = result
             return result
