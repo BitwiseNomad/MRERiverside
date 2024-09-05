@@ -14,24 +14,39 @@ def load_config(config_file):
     with open(config_file, 'r') as file:
         return yaml.safe_load(file)
 
-def get_token_for_instance(instance):
+def get_auth_for_instance(instance):
     try:
-        if 'token' in instance:
-            return instance['token']
+        if 'token' in instance and instance['token']:
+            logging.info(f"Using provided API token for instance {instance['url']}")
+            auth = ZabbixAuth(instance['url'])
+            auth.auth_token = instance['token']
+            return auth
         elif 'username' in instance and 'password' in instance:
+            logging.info(f"Generating token using username/password for instance {instance['url']}")
             return get_zabbix_token(instance['url'], instance['username'], instance['password'])
         else:
-            raise ValueError(f"Neither token nor credentials provided for Zabbix instance: {instance['url']}")
+            raise ValueError(f"Neither valid token nor credentials provided for Zabbix instance: {instance['url']}")
     except Exception as e:
-        logging.error(f"Error getting Zabbix token for instance {instance['url']}: {str(e)}")
+        logging.error(f"Error getting Zabbix auth for instance {instance['url']}: {str(e)}")
         raise
 
 def process_zbx_instance(instance, db_manager):
     logging.info(f"Starting to process Zabbix instance: {instance['url']} for plant: {instance['plant_name']}")
+    zabbix_auth = None
     try:
-        token = get_token_for_instance(instance)
-        instance['token'] = token  # Update the instance with the token
-        zabbix_collector = ZabbixCollector(instance)
+        zabbix_auth = get_auth_for_instance(instance)
+        if not zabbix_auth or not zabbix_auth.auth_token:
+            logging.error(f"Failed to obtain valid auth for instance {instance['url']}")
+            return False
+
+        instance['token'] = zabbix_auth.auth_token  # Update the instance with the token
+
+        try:
+            zabbix_collector = ZabbixCollector(instance)
+        except Exception as e:
+            logging.error(f"Failed to initialize ZabbixCollector for instance {instance['url']}: {str(e)}")
+            return False
+
         plant_id = db_manager.get_plant_id(instance['plant_name'])
 
         if plant_id is None:
@@ -72,6 +87,9 @@ def process_zbx_instance(instance, db_manager):
     except Exception as e:
         logging.error(f"Error processing Zabbix instance {instance['url']}: {str(e)}")
         return False
+    finally:
+        if zabbix_auth:
+            zabbix_auth.logout()
 
 def main():
     try:
@@ -84,9 +102,7 @@ def main():
         logging.info(f"Found {len(zabbix_instances)} Zabbix instances in the configuration")
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            future_to_instance = {executor.submit(process_zbx_instance,
-                                                  instance, db_manager):
-                                  instance for instance in zabbix_instances}
+            future_to_instance = {executor.submit(process_zbx_instance, instance, db_manager): instance for instance in zabbix_instances}
 
             for future in concurrent.futures.as_completed(future_to_instance):
                 instance = future_to_instance[future]
