@@ -24,7 +24,7 @@ class DatabaseManager:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT ISNULL(MAX(run_id), 0) + 1 FROM dbo.fact_infra_availability")
-            return cursor.fectchone()[0]
+            return cursor.fetchone()[0]
 
     def get_plant_id(self, plant_name):
         with self._get_connection() as conn:
