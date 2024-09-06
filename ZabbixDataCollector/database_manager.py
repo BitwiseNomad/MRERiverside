@@ -17,14 +17,17 @@ class DatabaseManager:
             f"PWD={config['password']};"
         )
 
+
     def _get_connection(self):
         return pyodbc.connect(self.conn_str)
+
 
     def _get_new_run_id(self):
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT ISNULL(MAX(run_id), 0) + 1 FROM dbo.fact_infra_availability")
             return cursor.fetchone()[0]
+
 
     def get_plant_id(self, plant_name):
         with self._get_connection() as conn:
@@ -34,24 +37,45 @@ class DatabaseManager:
             result = cursor.fetchone()
             return result[0] if result else None
 
+
     def get_or_create_server(self, plant_id, server_name, zabbix_hostid=None):
         with self._get_connection() as conn:
             cursor = conn.cursor()
             try:
+                # First, try to get the existing server
                 cursor.execute("""
-                IF NOT EXISTS (SELECT 1 FROM dbo.dim_server WHERE plant_id = ? AND server_name = ?)
-                BEGIN
-                    INSERT INTO dbo.dim_server (plant_id, server_name, zabbix_hostid)
-                    VALUES (?, ?, ?)
-                END
-                SELECT id FROM dbo.dim_server WHERE plant_id = ? AND server_name = ?
-                    """, (plant_id, server_name, plant_id, server_name,
-                          zabbix_hostid, plant_id, server_name))
-                return cursor.fetchone()[0]
+                SELECT id FROM dbo.dim_server
+                WHERE plant_id = ? AND server_name = ?
+                """, (plant_id, server_name))
+                result = cursor.fetchone()
+
+                if result:
+                    return result[0]
+
+                # If not found, insert the new server
+                cursor.execute("""
+                INSERT INTO dbo.dim_server (plant_id, server_name, zabbix_hostid)
+                VALUES (?, ?, ?)
+                """, (plant_id, server_name, zabbix_hostid))
+                conn.commit()
+
+                # Get the ID of the newly inserted server
+                cursor.execute("""
+                SELECT id FROM dbo.dim_server
+                WHERE plant_id = ? AND server_name = ?
+                """, (plant_id, server_name))
+                result = cursor.fetchone()
+
+                if result:
+                    return result[0]
+                else:
+                    raise Exception(f"Failed to retrieve ID for newly inserted server: {server_name}")
+
             except Exception as e:
-                logging.error(f"Error in get_or_create_server: {str(e)}")
                 conn.rollback()
+                logging.error(f"Error in get_or_create_server: {str(e)}")
                 raise
+
 
     def insert_infra_availability(self, server_id, is_available):
         with self._get_connection() as conn:
@@ -66,6 +90,7 @@ class DatabaseManager:
                 logging.error(f"Error in insert_infra_availability: {str(e)}")
                 conn.rollback()
                 raise
+
 
     def insert_disk_space(self, server_id, disk_data):
         with self._get_connection() as conn:
