@@ -4,13 +4,15 @@ import logging
 class ZabbixCollector:
     def __init__(self, instance):
         self.zapi = self.connect_to_zabbix(instance)
-        self.servers_group_id = self.get_servers_group_id()
+        #self.servers_group_id = self.get_servers_group_id()
+        self.windows_servers_group_id = self.get_windows_servers_group_id()
 
     def connect_to_zabbix(self, instance):
         zapi = ZabbixAPI(instance['url'])
         zapi.login(token=instance['token'])
         return zapi
 
+    '''
     def get_servers_group_id(self):
         try:
             hostgroups = self.zapi.hostgroup.get(filter={'name': ['Servers']})
@@ -18,17 +20,36 @@ class ZabbixCollector:
         except Exception as e:
             logging.error(f"Error getting 'Servers' hostgroup: {str(e)}")
             return None
+    '''
+
+    def get_windows_servers_group_id(self):
+        try:
+            hostgroups = self.zapi.hostgroup.get(filter={'name': ['Windows servers']})
+            return hostgroups[0]['groupid'] if hostgroups else None
+        except Exception as e:
+            logging.error(f"Error getting 'Windows servers' hostgroup: {str(e)}")
+            return None
+
 
     def get_servers(self):
         try:
-            if self.servers_group_id:
+            #if self.servers_group_id:
+            if self.windows_servers_group_id:
                 servers = self.zapi.host.get(
-                    groupids=self.servers_group_id,
+                    groupids=self.windows_servers_group_id,
                     output=['hostid', 'name'],
                     selectItems=['itemid', 'key_', 'lastvalue'],
                     filter={'status': '0'}  # 0 = enabled hosts
                 )
+                return servers
+
             else:
+                logging.error("'Windows servers' hostgroup not found")
+                return []
+        except Exception as e:
+            logging.error(f"Error getting servers: {str(e)}")
+            return []
+        '''
                 servers = self.zapi.host.get(
                     output=['hostid', 'name'],
                     selectItems=['itemid', 'key_', 'lastvalue'],
@@ -43,7 +64,7 @@ class ZabbixCollector:
         except Exception as e:
             logging.error(f"Error getting servers: {str(e)}")
             return []
-
+        '''
     def get_server_availability(self, server):
         try:
             if not isinstance(server, dict):
