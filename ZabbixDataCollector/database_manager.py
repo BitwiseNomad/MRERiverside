@@ -1,110 +1,89 @@
-import pyodbc
-from datetime import datetime
-import logging
+import requests
+import json
+from collector import setup_logging
 
 
-class DatabaseManager:
-    def __init__(self, db_config):
-        self.conn_str = self._create_conn_str(db_config)
-        self.run_id = self._get_new_run_id()
+logger = setup_logging(__name__)
 
-    def _create_conn_str(self, config):
-        return (
-            f"DRIVER={{{config['driver']}}};"
-            f"SERVER={config['server']};"
-            f"DATABASE={config['database']};"
-            f"UID={config['username']};"
-            f"PWD={config['password']};"
-        )
+class ZabbixAuth:
+    def __init__(self, url):
+        self.url = url
+        self.api_url = f"{url}/api_jsonrpc.php"
+        self.auth_token = None
+        self.zbx_version = None
 
 
-    def _get_connection(self):
-        return pyodbc.connect(self.conn_str)
+    def api_request(self, method, params=None, auth_token=None):
+        headers = {'Content-Type': 'application/json-rpc'}
+        payload = {
+            "jsonrpc": "2.0",
+            "method": method,
+            "params": params or {},
+            "id": 1,
+            "auth": auth_token or self.auth_token
+        }
+
+        logger.debug(f"Sending API request: {method}")
+        response = requests.post(self.api_url, data=json.dumps(payload), headers=headers)
+        response.raise_for_status()
+        result = response.json()
+
+        if "error" in result:
+            raise Exception(f"Zabbix API error: {result['error']['data']}")
+        return result["result"]
 
 
-    def _get_new_run_id(self):
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT ISNULL(MAX(run_id), 0) + 1 FROM dbo.fact_infra_availability")
-            return cursor.fetchone()[0]
+    def get_zbx_version(self):
+        if not self.zbx_version:
+            version_info = self.api_request("apiinfo.version", auth_token=None)
+            self.zbx_version = version_info.split('.')
+        return self.zbx_version
 
 
-    def get_plant_id(self, plant_name):
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                    "SELECT id FROM dbo.dim_plant WHERE name = ?", (plant_name,))
-            result = cursor.fetchone()
-            return result[0] if result else None
+    def login(self, username, password):
+        try:
+            logger.debug(f"Attempting to login with username: {username}")
+            version = self.get_zbx_version()
+
+            # Use 'user' for zabbix 5.0 and older, 'username' for newer versions
+            usr_param = "user" if int(version[0]) <= 5 else "username"
+
+            result = self.api_request("user.login", {usr_param: username, "password": password}, auth_token=None)
+            self.auth_token = result
+            logger.info("Login successful")
+            return result
+        except Exception as e:
+            logger.error(f"Login failed: {e}")
+            raise
 
 
-    def get_or_create_server(self, plant_id, server_name, zabbix_hostid=None):
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
+    def logout(self):
+        if self.auth_token:
             try:
-                # First, try to get the existing server
-                cursor.execute("""
-                SELECT id FROM dbo.dim_server
-                WHERE plant_id = ? AND server_name = ?
-                """, (plant_id, server_name))
-                result = cursor.fetchone()
-
-                if result:
-                    return result[0]
-
-                # If not found, insert the new server
-                cursor.execute("""
-                INSERT INTO dbo.dim_server (plant_id, server_name, zabbix_hostid)
-                VALUES (?, ?, ?)
-                """, (plant_id, server_name, zabbix_hostid))
-                conn.commit()
-
-                # Get the ID of the newly inserted server
-                cursor.execute("""
-                SELECT id FROM dbo.dim_server
-                WHERE plant_id = ? AND server_name = ?
-                """, (plant_id, server_name))
-                result = cursor.fetchone()
-
-                if result:
-                    return result[0]
-                else:
-                    raise Exception(f"Failed to retrieve ID for newly inserted server: {server_name}")
-
+                self.api_request("user.logout", auth_token=self.auth_token)
+                logger.info("Logout successful")
             except Exception as e:
-                conn.rollback()
-                logging.error(f"Error in get_or_create_server: {str(e)}")
-                raise
+                logger.error(f"Logout failed: {e}")
+            finally:
+                self.auth_token = None
 
+    def get_or_create_token(self, name="PythonScriptToken", userid=None, description=None, expires_in_days=30):
+        try:
+            # We'll use the session token (self.auth_token) for API requests instead of creating a separate API token
+            return self.auth_token
+        except Exception as e:
+            logger.error(f"Error in get_or_create_token: {e}")
+            raise
 
-    def insert_infra_availability(self, server_id, is_available):
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            try:
-                cursor.execute("""
-                INSERT INTO dbo.fact_infra_availability (server_id, timestamp, is_available, run_id)
-                VALUES (?, ?, ?, ?)
-                """, (server_id, datetime.now(), is_available, self.run_id))
-                conn.commit()
-            except Exception as e:
-                logging.error(f"Error in insert_infra_availability: {str(e)}")
-                conn.rollback()
-                raise
-
-
-    def insert_disk_space(self, server_id, disk_data):
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            try:
-                cursor.execute("""
-                INSERT INTO dbo.fact_disk_space
-                (server_id, timestamp, mount_point, total_space, used_space, free_space, free_space_percent)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (server_id, datetime.now(), disk_data['mount_point'],
-                      disk_data['total_space'], disk_data['used_space'],
-                      disk_data['free_space'], disk_data['free_space_percent']))
-                conn.commit()
-            except Exception as e:
-                logging.error(f"Error in insert_disk_space: {str(e)}")
-                conn.rollback()
-                raise
+def get_zabbix_token(url, username, password, token_name="PythonScriptToken"):
+    auth = ZabbixAuth(url)
+    try:
+        auth.login(username, password)
+        token = auth.get_or_create_token(token_name)
+        if not token:
+            raise ValueError("Failed to retrieve a valid token")
+        logger.debug(f"Retrieved token: {token[:5]}...") # ...for debugging
+        return auth  # Return the ZabbixAuth instance instead of just the token
+    except Exception as e:
+        logger.error(f"Failed to get Zabbix token: {e}")
+        raise
