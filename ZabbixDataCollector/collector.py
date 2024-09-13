@@ -25,18 +25,22 @@ def setup_logging():
     # Create a rotating file handler
     file_handler = RotatingFileHandler(
         log_file, maxBytes=10*1024*1024, backupCount=5) # 10MB per file, keep 5 backups
+    file_handler.setLevel(logging.DEBUG)
+
+    # Create a formatter and add it to the handler
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     file_handler.setFormatter(formatter)
 
     # Add the handler to the logger
     logger.addHandler(file_handler)
 
-    # Why dafuq NOT?! Can be removed once ready for production
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+    # why dafuq not?! can be removed once ready for production
+    console_handler = logging.streamhandler()
+    console_handler.setlevel(logging.info)
+    console_handler.setformatter(formatter)
+    logger.addhandler(console_handler)
 
-    logging.info(f"Logging initialized. Log file: {log_file}")
+    logging.info(f"logging initialized. log file: {log_file}")
 
 
 def load_config(config_file):
