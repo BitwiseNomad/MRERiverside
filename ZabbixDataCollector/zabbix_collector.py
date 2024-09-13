@@ -1,5 +1,8 @@
 from zabbix_utils.api import ZabbixAPI
-import logging
+from collector import setup_logging
+
+
+logger = setup_logging(__name__)   
 
 class ZabbixCollector:
     def __init__(self, instance):
@@ -18,7 +21,7 @@ class ZabbixCollector:
             hostgroups = self.zapi.hostgroup.get(filter={'name': ['Servers']})
             return hostgroups[0]['groupid'] if hostgroups else None
         except Exception as e:
-            logging.error(f"Error getting 'Servers' hostgroup: {str(e)}")
+            logger.error(f"Error getting 'Servers' hostgroup: {str(e)}")
             return None
 
 
@@ -40,33 +43,33 @@ class ZabbixCollector:
                     filter={'status': '0'}
                 )
 
-            logging.info(f"Retrieved [{len(servers)}] servers.")
+            logger.info(f"Retrieved [{len(servers)}] servers.")
             # Log the structure of the first server for debugging
             if servers:
-                logging.debug(f"Server data structure: {servers[0]}")
+                logger.debug(f"Server data structure: {servers[0]}")
 
             return servers
         except Exception as e:
-            logging.error(f"Error getting servers: {str(e)}")
+            logger.error(f"Error getting servers: {str(e)}")
             return []
 
 
     def get_server_availability(self, server):
         try:
             if not isinstance(server, dict):
-                logging.error(f"Unexpected server data type: {type(server)}")
+                logger.error(f"Unexpected server data type: {type(server)}")
                 return 0
 
             for item in server.get('items', []):
                 if item['key_'] == 'agent.ping':
                     is_available = item['lastvalue'] == '1'
-                    logging.debug(f"Server {server.get('name', 'Unknown')} - Agent Ping: {'Available' if is_available else 'Unavailable'}")
+                    logger.debug(f"Server {server.get('name', 'Unknown')} - Agent Ping: {'Available' if is_available else 'Unavailable'}")
                     return 1 if is_available else 0
 
-            logging.warning(f"No agent.ping item found for server {server.get('name', 'Unknown')}")
+            logger.warning(f"No agent.ping item found for server {server.get('name', 'Unknown')}")
             return 0
         except Exception as e:
-            logging.error(f"Error getting server availability: {str(e)}")
+            logger.error(f"Error getting server availability: {str(e)}")
             return 0
 
 
@@ -96,7 +99,7 @@ class ZabbixCollector:
                     elif 'free' in metric:
                         disk_data[mount_point]['free'] = value
                 except Exception as item_error:
-                    logging.warning(f"Error processing item {item['key_']}: {str(item_error)}")
+                    logger.warning(f"Error processing item {item['key_']}: {str(item_error)}")
                     continue
 
             result = []
@@ -120,5 +123,5 @@ class ZabbixCollector:
 
             return result
         except Exception as e:
-            logging.error(f"Error getting server disk space: {str(e)}")
+            logger.error(f"Error getting server disk space: {str(e)}")
             return []
