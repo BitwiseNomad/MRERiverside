@@ -6,10 +6,12 @@ class ZabbixCollector:
         self.zapi = self.connect_to_zabbix(instance)
         self.servers_group_id = self.get_servers_group_id()
 
+
     def connect_to_zabbix(self, instance):
         zapi = ZabbixAPI(instance['url'])
         zapi.login(token=instance['token'])
         return zapi
+
 
     def get_servers_group_id(self):
         try:
@@ -19,6 +21,7 @@ class ZabbixCollector:
             logging.error(f"Error getting 'Servers' hostgroup: {str(e)}")
             return None
 
+
     def get_servers(self):
         try:
             if self.servers_group_id:
@@ -26,7 +29,7 @@ class ZabbixCollector:
                     groupids=self.servers_group_id,
                     output=['hostid', 'name'],
                     selectItems=['itemid', 'key_', 'lastvalue'],
-                    filter={'status': '0'}  # 0 = enabled hosts
+                    filter={'status': '0'}  # 0 => ONLY enabled hosts
                 )
                 return servers
 
@@ -37,6 +40,7 @@ class ZabbixCollector:
                     filter={'status': '0'}
                 )
 
+            logging.info(f"Retrieved [{len(servers)}] servers.")
             # Log the structure of the first server for debugging
             if servers:
                 logging.debug(f"Server data structure: {servers[0]}")
@@ -45,6 +49,7 @@ class ZabbixCollector:
         except Exception as e:
             logging.error(f"Error getting servers: {str(e)}")
             return []
+
 
     def get_server_availability(self, server):
         try:
@@ -64,6 +69,7 @@ class ZabbixCollector:
             logging.error(f"Error getting server availability: {str(e)}")
             return 0
 
+
     def get_server_disk_space(self, hostid):
         try:
             items = self.zapi.item.get(
@@ -78,7 +84,7 @@ class ZabbixCollector:
                     key_parts = item['key_'].split('[')[1].split(']')[0].split(',')
                     mount_point = key_parts[0]
                     metric = key_parts[1] if len(key_parts) > 1 else 'total'
-                    value = float(item['lastvalue'])
+                    value = float(item['lastvalue']) # Convert string to float
 
                     if mount_point not in disk_data:
                         disk_data[mount_point] = {'total': 0, 'used': 0, 'free': 0}
@@ -108,6 +114,7 @@ class ZabbixCollector:
                         'total_space': data['total'],
                         'used_space': data['used'],
                         'free_space': data['free'],
+                        'used_space_percent': data['pused'],
                         'free_space_percent': free_percent
                     })
 

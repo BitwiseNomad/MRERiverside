@@ -2,12 +2,15 @@ import requests
 import json
 import logging
 from datetime import datetime, timedelta
+from collector
 
 class ZabbixAuth:
     def __init__(self, url):
         self.url = url
         self.api_url = f"{url}/api_jsonrpc.php"
         self.auth_token = None
+        self.zbx_version = None
+
 
     def api_request(self, method, params=None, auth_token=None):
         headers = {'Content-Type': 'application/json-rpc'}
@@ -28,16 +31,30 @@ class ZabbixAuth:
             raise Exception(f"Zabbix API error: {result['error']['data']}")
         return result["result"]
 
+
+    def get_zbx_version(self):
+        if not self.zbx_version:
+            version_info = self.api_request("apiinfo.version", auth_token=None)
+            self.zbx_version = version_info.split('.')
+        return self.zbx_version
+
+
     def login(self, username, password):
         try:
             logging.debug(f"Attempting to login with username: {username}")
-            result = self.api_request("user.login", {"username": username, "password": password}, auth_token=None)
+            version = self.get_zbx_version()
+
+            # Use 'user' for zabbix 5.0 and older, 'username' for newer versions
+            usr_param = "user" if int(version[0]) <= 5 else "username"
+
+            result = self.api_request("user.login", {usr_param: username, "password": password}, auth_token=None)
             self.auth_token = result
             logging.info("Login successful")
             return result
         except Exception as e:
             logging.error(f"Login failed: {e}")
             raise
+
 
     def logout(self):
         if self.auth_token:
@@ -64,6 +81,7 @@ def get_zabbix_token(url, username, password, token_name="PythonScriptToken"):
         token = auth.get_or_create_token(token_name)
         if not token:
             raise ValueError("Failed to retrieve a valid token")
+        logging.debug(f"Retrieved token: {token[:5]}...") # ...for debugging
         return auth  # Return the ZabbixAuth instance instead of just the token
     except Exception as e:
         logging.error(f"Failed to get Zabbix token: {e}")

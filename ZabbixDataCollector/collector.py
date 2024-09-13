@@ -1,14 +1,43 @@
 import yaml
 import logging
+from logging.handlers import RotatingFileHandler
+import os
 import concurrent.futures
 from datetime import datetime
 from zabbix_collector import ZabbixCollector
 from database_manager import DatabaseManager
 from zabbix_auth import ZabbixAuth, get_zabbix_token
 
-# Set up logging
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+
+def setup_logging():
+    # Create logs directory if it doesn't exist
+    log_dir = 'logs'
+    os.makedirs(log_dir, exist_ok=True)
+
+    # Generate a timestamp for the log filename
+    timestamp = datetime.now().strftime("%Y%M%d_%H%M%S")
+    log_file = os.path.join(log_dir, f'zabbix_collector_{timestamp}.log')
+
+    # Set up the root logger
+    logger = logging.getlogger()
+    logger.setLevel(logging.DEBUG)
+
+    # Create a rotating file handler
+    file_handler = RotatingFileHandler(
+        log_file, maxBytes=10*1024*1024, backupCount=5) # 10MB per file, keep 5 backups
+    file_handler.setFormatter(formatter)
+
+    # Add the handler to the logger
+    logger.addHandler(file_handler)
+
+    # Why dafuq NOT?! Can be removed once ready for production
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    logging.info(f"Logging initialized. Log file: {log_file}")
+
 
 def load_config(config_file):
     with open(config_file, 'r') as file:
@@ -92,6 +121,7 @@ def process_zbx_instance(instance, db_manager):
             zabbix_auth.logout()
 
 def main():
+    setup_logging()
     try:
         config = load_config('config.yml')
         db_manager = DatabaseManager(config['database'])
