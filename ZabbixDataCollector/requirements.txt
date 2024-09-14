@@ -1,0 +1,6 @@
+aiohttp
+pyodbc
+pyyaml
+requests
+sqlalchemy
+tenacity
