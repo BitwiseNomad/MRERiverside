@@ -63,7 +63,7 @@ def setup_logging():
     # Add the handler to the logger
     logger.addHandler(file_handler)
 
-    # why dafuq not?! can be removed once ready for production
+    # why dafuq wouldn't you?!
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(formatter)
@@ -85,7 +85,9 @@ async def get_auth_for_instance(instance: ZabbixInstance) -> ZabbixAuth:
             return auth
         elif 'username' in instance and 'password' in instance:
             logging.info(f"Generating token using username/password for instance {instance['url']}")
-            return await get_zabbix_token(instance['url'], instance['username'], instance['password'])
+            auth = ZabbixAuth(instance['url'])
+            await auth.login(instance['username'], instance['password'])
+            return auth
         else:
             raise ValueError(f"Neither valid token nor credentials provided for Zabbix instance: {instance['url']}")
     except Exception as e:
@@ -142,66 +144,64 @@ async def process_zbx_instance(instance: ZabbixInstance, db_manager: DatabaseMan
         if zabbix_auth:
             await zabbix_auth.logout()
 
-async def test_database_connection(db_manager):
-    logging.info("Testing database connection...")
-    try:
-        # Test a simple query
-        plant_id = db_manager.get_plant_id("Riverside")
-        logging.info(f"DB connection successful. Test query result: {plant_id}")
-        # Test creating a session
-        with db_manager.Session() as session:
-            result = session.execute("SELECT 1").fetchone()
-            logging.info(f"Session created successfully. Test result: {result}")
-        return True
-    except Exception as e:
-        logging.error(f"Failed to connect to the database: {str(e)}", exc_info=True)
-        if hasattr(e, 'orig'):
-            logging.error(f"Original error: {str(e.orig)}")
-        return False
+#async def test_database_connection(db_manager):
+#    logging.info("Testing database connection...")
+#    try:
+#        # Test a simple query
+#        plant_id = db_manager.get_plant_id("Riverside")
+#        logging.info(f"DB connection successful. Test query result: {plant_id}")
+#        # Test creating a session
+#        with db_manager.Session() as session:
+#            result = session.execute("SELECT 1").fetchone()
+#            logging.info(f"Session created successfully. Test result: {result}")
+#        return True
+#    except Exception as e:
+#        logging.error(f"Failed to connect to the database: {str(e)}", exc_info=True)
+#        if hasattr(e, 'orig'):
+#            logging.error(f"Original error: {str(e.orig)}")
+#        return False
 
 
-def check_odbc_driver():
-    try:
-        res = subprocess.run(['odbcinst', '-q', '-d'], capture_output=True, text=True)
-        logging.info(f"Available ODBC drivers:\n{res.stdout}")
-
-        res = subprocess.run(['odbcinst', '-q', '-d', '-n', "ODBC Driver 17 for SQL Server"], capture_output=True, text=True)
-        logging.info(f"ODBC Driver 17 for SQL Server configuration:\n{res.stdout}")
-    except Exception as e:
-        logging.error(f"Error checking ODBC driver: {str(e)}")
-
-def run_network_diagnostics(server):
-    try:
-        ping_result = subprocess.run(['ping', '-c', '4', server], capture_output=True, text=True)
-        logging.info(f"Ping test results:\n{ping_result.stdout}")
-
-        traceroute_result = subprocess.run(['traceroute', server], capture_output=True, text=True)
-        logging.info(f"Traceroute results:\n{traceroute_result.stdout}")
-
-        nc_result = subprocess.run(['nc', '-zv', server, '1433'], capture_output=True, text=True)
-        logging.info(f"Port 1433 test results:\n{nc_result.stderr}")
-    except Exception as e:
-        logging.error(f"Error running network diagnostics: {str(e)}")
-
-
-def check_firewall_and_sql_config(server):
-    logging.info("Checking firewall and SQL Server configuration...")
-    logging.info("Please ensure that:")
-    logging.info(f"1. The firewall on {server} allows incoming connections on port 1433")
-    logging.info(f"2. SQL Server on {server} is configured to allow remote connections")
-    logging.info("3. The SQL Server Browser service is running on the server")
-    logging.info("4. The server's network adapter has TCP/IP enabled")
-    logging.info("5. Your client machine's firewall is not blocking outgoing connections to port 1433")
+#def check_odbc_driver():
+#    try:
+#        res = subprocess.run(['odbcinst', '-q', '-d'], capture_output=True, text=True)
+#        logging.info(f"Available ODBC drivers:\n{res.stdout}")
+#
+#        res = subprocess.run(['odbcinst', '-q', '-d', '-n', "ODBC Driver 17 for SQL Server"], capture_output=True, text=True)
+#        logging.info(f"ODBC Driver 17 for SQL Server configuration:\n{res.stdout}")
+#    except Exception as e:
+#        logging.error(f"Error checking ODBC driver: {str(e)}")
+#
+#def run_network_diagnostics(server):
+#    try:
+#        ping_result = subprocess.run(['ping', '-c', '4', server], capture_output=True, text=True)
+#        logging.info(f"Ping test results:\n{ping_result.stdout}")
+#
+#        traceroute_result = subprocess.run(['traceroute', server], capture_output=True, text=True)
+#        logging.info(f"Traceroute results:\n{traceroute_result.stdout}")
+#
+#        nc_result = subprocess.run(['nc', '-zv', server, '1433'], capture_output=True, text=True)
+#        logging.info(f"Port 1433 test results:\n{nc_result.stderr}")
+#    except Exception as e:
+#        logging.error(f"Error running network diagnostics: {str(e)}")
+#
+#
+#def check_firewall_and_sql_config(server):
+#    logging.info("Checking firewall and SQL Server configuration...")
+#    logging.info("Please ensure that:")
+#    logging.info(f"1. The firewall on {server} allows incoming connections on port 1433")
+#    logging.info(f"2. SQL Server on {server} is configured to allow remote connections")
+#    logging.info("3. The SQL Server Browser service is running on the server")
+#    logging.info("4. The server's network adapter has TCP/IP enabled")
+#    logging.info("5. Your client machine's firewall is not blocking outgoing connections to port 1433")
 
 async def main():
     setup_logging()
     try:
         config = load_config('config.yml')
-        logging.info(f"Loaded config: {config}")
+        #logging.info(f"Loaded config: {config}")
 
-        check_odbc_driver()
-        run_network_diagnostics(config['database']['server'])
-        check_firewall_and_sql_config(config['database']['server'])
+        #check_odbc_driver()
 
         try:
             db_manager = DatabaseManager(config['database'])
@@ -214,9 +214,9 @@ async def main():
 
         logging.info(f"Initialized DatabaseManager with config: {config['database']}")
 
-        if not await test_database_connection(db_manager):
-            logging.error("DB connection test failed. Exiting...")
-            return
+        #if not await test_database_connection(db_manager):
+        #    logging.error("DB connection test failed. Exiting...")
+        #    return
 
         logging.info(f"Starting data collection run with run_id: {db_manager.run_id}")
 

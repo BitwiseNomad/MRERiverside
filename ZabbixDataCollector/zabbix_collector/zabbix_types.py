@@ -3,6 +3,8 @@ from typing import TypedDict, List
 class ZabbixInstance(TypedDict):
     url: str
     plant_name: str
+    username: str
+    password: str
     token: str
 
 class ServerInfo(TypedDict):

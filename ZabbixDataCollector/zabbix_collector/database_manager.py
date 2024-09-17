@@ -1,5 +1,4 @@
-from sqlalchemy import func
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Float, event
+from sqlalchemy import create_engine, Column, func, Integer, String, DateTime, Boolean, Float, event
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
@@ -49,7 +48,7 @@ class DatabaseManager:
         self.engine = self._create_engine()
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
-        self.test_connection()
+#        self.test_connection()
         self.run_id = self._get_new_run_id()
 
     def _create_engine(self):
@@ -76,32 +75,32 @@ class DatabaseManager:
             pool_recycle=3600
         )
 
-    def test_connection(self):
-        try:
-            # Try a direct pyodbc connection first
-            conn_str = (
-                f"DRIVER={{{self.config['driver']}}};"
-                f"SERVER={self.config['server']};"
-                f"DATABASE={self.config['database']};"
-                f"UID={self.config['username']};"
-                f"PWD={self.config['password']};"
-                f"Timeout=60;"
-            )
-            logging.info(f"Testing direct pyodbc connection with string: {conn_str}")
-            conn = pyodbc.connect(conn_str, timeout=60)
-            cursor = conn.cursor()
-            cursor.execute("SELECT 1")
-            result = cursor.fetchone()
-            logging.info(f"Direct pyodbc connection successful. Result: {result}")
-            conn.close()
-
-            # Now test the SQLAlchemy connection
-            with self.engine.connect() as connection:
-                result = connection.execute("SELECT 1").fetchone()
-                logging.info(f"SQLAlchemy connection test successful. Result: {result}")
-        except Exception as e:
-            logging.error(f"Connection test failed: {str(e)}", exc_info=True)
-            raise
+#    def test_connection(self):
+#        try:
+#            # Try a direct pyodbc connection first
+#            conn_str = (
+#                f"DRIVER={{{self.config['driver']}}};"
+#                f"SERVER={self.config['server']};"
+#                f"DATABASE={self.config['database']};"
+#                f"UID={self.config['username']};"
+#                f"PWD={self.config['password']};"
+#                f"Timeout=60;"
+#            )
+#            logging.info(f"Testing direct pyodbc connection with string: {conn_str}")
+#            conn = pyodbc.connect(conn_str, timeout=60)
+#            cursor = conn.cursor()
+#            cursor.execute("SELECT 1")
+#            result = cursor.fetchone()
+#            logging.info(f"Direct pyodbc connection successful. Result: {result}")
+#            conn.close()
+#
+#            # Now test the SQLAlchemy connection
+#            with self.engine.connect() as connection:
+#                result = connection.execute("SELECT 1").fetchone()
+#                logging.info(f"SQLAlchemy connection test successful. Result: {result}")
+#        except Exception as e:
+#            logging.error(f"Connection test failed: {str(e)}", exc_info=True)
+#            raise
 
     def get_plant_id(self, plant_name):
         try:
@@ -132,6 +131,7 @@ class DatabaseManager:
                 return (max_run_id or 0) + 1
         except Exception as e:
             logging.error(f"Error getting new run ID: {str(e)}")
+            raise
 
     def insert_infra_availability(self, server_id, is_available):
         try:
