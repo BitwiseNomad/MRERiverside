@@ -1,0 +1,15 @@
+# Asynchronous HTTP
+aiohttp
+
+# Async support
+asyncio
+
+# Database
+pyodbc
+sqlalchemy
+
+# YAML parsing
+pyyaml
+
+# Retry logic
+tenacity
