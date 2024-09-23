@@ -50,28 +50,9 @@ The Zabbix Data Collector is a Python-based tool designed to collect server infr
 
 4. Configure the `config.yml` file with your database and Zabbix instance details.
 
-### Linux
-
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/zabbix-data-collector.git
-   cd zabbix-data-collector
-   ```
-
-2. Create a virtual environment (optional but recommended):
-   ```
-   python -m venv venv
-   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-   ```
-
-3. Install the required packages:
-   ```
-   pip install -r requirements.txt
-   ```
-
 ## Configuration
 
-Edit the `config.yml` file to set up your database connection and Zabbix instances:
+Edit the <table><tr><td>`config.yml`</td></tr></table> file to set up your database connection and Zabbix instances:
 
 ```yaml
 database:
@@ -105,7 +86,7 @@ The script will collect data from all configured Zabbix instances and store it i
 > [!TIP]
 > **Windows** - run the script automatically at regular intervals.:
 
-1. Create a batch file (e.g. `run_collector.bat`):
+1. Create a batch file (e.g. <table><tr><td>`run_collector.bat`</td></tr></table>):
     ```batch
     @echo off
     cd /d C:\path\to\zabbix-data-collector
@@ -116,7 +97,7 @@ The script will collect data from all configured Zabbix instances and store it i
 
 ## Logging
 
-Logs are stored in the `logs` directory. Each run creates a new log file with a timestamp.
+Logs are stored in the <table><tr><td>`logs`</td></tr></table> directory. Each run creates a new log file with a timestamp.
 
 
 ## Troubleshooting
@@ -134,7 +115,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-[MIT](https://opensource.org/licenses/MIT)
+<table><tr><td> <br>[MIT](https://opensource.org/licenses/MIT) <br></td></tr></table>
 
 ## Acknowledgements
 
