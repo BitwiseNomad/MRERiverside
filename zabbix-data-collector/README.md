@@ -21,8 +21,8 @@ The Zabbix Data Collector is a Python-based tool designed to collect server infr
 
 ## Installation
 
-[!NOTE]
-This tool is specifically being designed to run on the Windows Server hosting the SQL Server, enabling direct and efficient data collection and storage.
+> [!NOTE]
+> This tool is specifically being designed to run on the Windows Server hosting the SQL Server, enabling direct and efficient data collection and storage.
 
 ### Windows
 
@@ -97,8 +97,8 @@ python collector.py
 
 The script will collect data from all configured Zabbix instances and store it in the specified SQL Server database.
 
-[!TIP]
-**Windows** - run the script automatically at regular intervals.:
+> [!TIP]
+> **Windows** - run the script automatically at regular intervals.:
 
 1. Create a batch file (e.g. `run_collector.bat`):
     ```batch
