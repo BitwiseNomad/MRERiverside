@@ -34,6 +34,11 @@ The Zabbix Data Collector is a Python-based tool designed to collect server infr
 
 2. Set up a Python virtual environment (optional but recommended):
    ```
+   conda create -n <env_name> python=3.xx
+   conda activate <env_name>
+
+   ...OR
+
    python -m venv venv
    venv\Scripts\activate
    ```
