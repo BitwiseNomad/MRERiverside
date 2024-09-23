@@ -86,7 +86,7 @@ The script will collect data from all configured Zabbix instances and store it i
 > [!TIP]
 > **Windows** - run the script automatically at regular intervals.:
 
-1. Create a batch file (e.g. <table><tr><td>`run_collector.bat`</td></tr></table>):
+1. Create a batch file (e.g. `run_collector.bat`):
     ```batch
     @echo off
     cd /d C:\path\to\zabbix-data-collector
@@ -97,7 +97,7 @@ The script will collect data from all configured Zabbix instances and store it i
 
 ## Logging
 
-Logs are stored in the <table><tr><td>`logs`</td></tr></table> directory. Each run creates a new log file with a timestamp.
+Logs are stored in the `logs` directory. Each run creates a new log file with a timestamp.
 
 
 ## Troubleshooting
@@ -115,7 +115,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-<table><tr><td> <br>[MIT](https://opensource.org/licenses/MIT) <br></td></tr></table>
+[MIT](https://opensource.org/licenses/MIT)
 
 ## Acknowledgements
 
