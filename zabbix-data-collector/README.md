@@ -52,7 +52,7 @@ The Zabbix Data Collector is a Python-based tool designed to collect server infr
 
 ## Configuration
 
-Edit the <table><tr><td>`config.yml`</td></tr></table> file to set up your database connection and Zabbix instances:
+Edit the `config.yml` file to set up your database connection and Zabbix instances:
 
 ```yaml
 database:
