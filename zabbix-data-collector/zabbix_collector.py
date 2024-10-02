@@ -22,6 +22,7 @@ class ZabbixCollector:
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10),
            retry=retry_if_exception_type(aiohttp.ClientError))
+
     async def api_request(self, method: str, params: dict) -> dict:
         headers = {'Content-Type': 'application/json-rpc'}
         data = {
@@ -87,28 +88,34 @@ class ZabbixCollector:
                 'sortfield': 'name'
             })
             items = result.get('result', [])
-            disk_space_data = []
+            disk_space_data = {}
             for item in items:
                 if item['key_'].startswith('vfs.fs.size['):
                     mount_point = item['key_'].split('[')[1].split(',')[0]
-                    if item['key_'].endswith('total]'):
-                        total_space = float(item['lastvalue'])
-                    elif item['key_'].endswith('used]'):
-                        used_space = float(item['lastvalue'])
-                    elif item['key_'].endswith('free]'):
-                        free_space = float(item['lastvalue'])
+                    if mount_point not in disk_space_data:
+                        disk_space_data[mount_point] = {}
 
-                    if 'total_space' in locals() and 'used_space' in locals() and 'free_space' in locals():
-                        free_space_percent = (free_space / total_space) * 100
-                        disk_space_data.append(DiskSpaceData(
-                            mount_point=mount_point,
-                            total_space=total_space,
-                            used_space=used_space,
-                            free_space=free_space,
-                            free_space_percent=free_space_percent
-                        ))
-                        del total_space, used_space, free_space
-            return disk_space_data
+                    if item['key_'].endswith('total]'):
+                        disk_space_data[mount_point]['total_space'] = float(item['lastvalue'])
+                    elif item['key_'].endswith('used]'):
+                        disk_space_data[mount_point]['used_space'] = float(item['lastvalue'])
+                    elif item['key_'].endswith('free]'):
+                        disk_space_data[mount_point]['free_space'] = float(item['lastvalue'])
+
+            result = []
+            for mount_point, data in disk_space_data.items():
+                if all(key in data for key in ['total_space', 'used_space', 'free_space']):
+                    total_space = data['total_space']
+                    free_space_percent = (data['free_space'] / total_space * 100) if total_space > 0 else 0
+                    result.append(DiskSpaceData(
+                        mount_point=mount_point,
+                        total_space=data['total_space'],
+                        used_space=data['used_space'],
+                        free_space=data['free_space'],
+                        free_space_percent=free_space_percent
+                    ))
+
+            return result
         except Exception as e:
             logging.error(f"Error fetching disk space data: {str(e)}")
             return []
